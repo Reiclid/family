@@ -48,8 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const settingsDoc = await getDoc(doc(db, "settings", "whitelist"));
                     const allowedEmails: string[] = settingsDoc.exists() ? (settingsDoc.data().emails || []) : [];
 
-                    // Якщо список порожній — доступ всім
-                    if (allowedEmails.length === 0 || allowedEmails.includes(firebaseUser.email)) {
+                    // Перевіряємо чи email є в білому списку
+                    if (allowedEmails.includes(firebaseUser.email)) {
                         setUser({
                             uid: firebaseUser.uid,
                             email: firebaseUser.email,

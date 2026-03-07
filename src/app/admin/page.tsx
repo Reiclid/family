@@ -225,7 +225,6 @@ export default function AdminPage() {
 
                         <p className="text-sm text-text-muted mb-6">
                             Користувачі, чиї email-и знаходяться у цьому списку, матимуть доступ до перегляду фотографій.
-                            Якщо список порожній, доступ матимуть усі, хто має посилання.
                         </p>
 
                         {/* Повідомлення */}
@@ -264,7 +263,7 @@ export default function AdminPage() {
                         <div className="space-y-2">
                             {emails.length === 0 ? (
                                 <div className="text-center py-8 text-text-light border-2 border-dashed border-border rounded-xl">
-                                    Список порожній. Вхід дозволено всім.
+                                    Список порожній. Вхід буде доступний лише вам (адміністратору).
                                 </div>
                             ) : (
                                 emails.map((email) => (
