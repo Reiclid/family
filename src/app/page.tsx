@@ -13,6 +13,7 @@ import YearTimeline from "@/components/YearTimeline";
 import PhotoGrid from "@/components/PhotoGrid";
 import PhotoLightbox from "@/components/PhotoLightbox";
 import SortDropdown from "@/components/SortDropdown";
+import ScrollToTop from "@/components/ScrollToTop";
 import { Loader2, ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -232,6 +233,8 @@ export default function HomePage() {
           Сімейний Архів • Зберігаємо спогади для майбутніх поколінь
         </p>
       </footer>
+
+      <ScrollToTop />
     </div>
   );
 }
