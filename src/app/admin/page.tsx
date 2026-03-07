@@ -5,14 +5,16 @@ import { ADMIN_CONFIG } from "@/config/admin";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Plus, Trash2, ShieldCheck, AlertCircle, Check, X as XIcon } from "lucide-react";
+import { Loader2, Plus, Trash2, ShieldCheck, AlertCircle, Check, X as XIcon, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function AdminPage() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const [emails, setEmails] = useState<string[]>([]);
+    const [editors, setEditors] = useState<string[]>([]);
     const [requests, setRequests] = useState<{ email: string, displayName: string, timestamp: string }[]>([]);
     const [newEmail, setNewEmail] = useState("");
     const [loading, setLoading] = useState(true);
@@ -29,10 +31,12 @@ export default function AdminPage() {
         try {
             setLoading(true);
 
-            // Завантажуємо білий список
+            // Завантажуємо білий список та редакторів
             const settingsDoc = await getDoc(doc(db, "settings", "whitelist"));
             if (settingsDoc.exists()) {
-                setEmails(settingsDoc.data().emails || []);
+                const data = settingsDoc.data();
+                setEmails(data.emails || []);
+                setEditors(data.editors || []);
             }
 
             // Завантажуємо заявки на розгляд
@@ -93,13 +97,40 @@ export default function AdminPage() {
 
         try {
             const updatedEmails = emails.filter(e => e !== emailToRemove);
-            await setDoc(doc(db, "settings", "whitelist"), { emails: updatedEmails }, { merge: true });
+            const updatedEditors = editors.filter(e => e !== emailToRemove);
+            await setDoc(doc(db, "settings", "whitelist"), {
+                emails: updatedEmails,
+                editors: updatedEditors
+            }, { merge: true });
             setEmails(updatedEmails);
+            setEditors(updatedEditors);
             setSuccess("Email видалено.");
             setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             console.error("Error removing email", err);
             setError("Помилка при видаленні email.");
+        }
+    };
+
+    const handleToggleEditor = async (emailToToggle: string) => {
+        setError(null);
+        setSuccess(null);
+
+        try {
+            let updatedEditors;
+            if (editors.includes(emailToToggle)) {
+                updatedEditors = editors.filter(e => e !== emailToToggle);
+            } else {
+                updatedEditors = [...editors, emailToToggle];
+            }
+
+            await setDoc(doc(db, "settings", "whitelist"), { editors: updatedEditors }, { merge: true });
+            setEditors(updatedEditors);
+            setSuccess(editors.includes(emailToToggle) ? "Права редактора скасовано." : "Надано права редактора.");
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err) {
+            console.error("Error toggling role", err);
+            setError("Помилка при зміні ролі.");
         }
     };
 
@@ -151,8 +182,20 @@ export default function AdminPage() {
     }
 
     return (
-        <div className="min-h-screen bg-warm-white py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-2xl mx-auto space-y-8">
+        <div className="min-h-screen bg-warm-white py-12 px-4 sm:px-6 lg:px-8 relative">
+
+            {/* Кнопка виходу (Назад до Галереї) */}
+            <div className="absolute top-4 left-4 sm:top-8 sm:left-8">
+                <Link
+                    href="/"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-border text-text-muted hover:text-terracotta hover:border-terracotta/30 hover:shadow-md transition-all group"
+                >
+                    <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    <span className="font-medium hidden sm:block">Назад до Галереї</span>
+                </Link>
+            </div>
+
+            <div className="max-w-2xl mx-auto space-y-8 mt-12 sm:mt-0">
                 {/* Заголовок */}
                 <div className="text-center">
                     <motion.div
@@ -266,21 +309,42 @@ export default function AdminPage() {
                                     Список порожній. Вхід буде доступний лише вам (адміністратору).
                                 </div>
                             ) : (
-                                emails.map((email) => (
-                                    <div
-                                        key={email}
-                                        className="flex items-center justify-between p-4 rounded-xl bg-warm-white border border-border group"
-                                    >
-                                        <span className="font-medium text-text-dark">{email}</span>
-                                        <button
-                                            onClick={() => handleRemoveEmail(email)}
-                                            className="p-2 text-text-light hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 sm:opacity-100"
-                                            title="Видалити"
+                                emails.map((email) => {
+                                    const isEditor = editors.includes(email);
+                                    return (
+                                        <div
+                                            key={email}
+                                            className={`flex items-center justify-between p-4 rounded-xl border transition-colors group ${isEditor ? 'bg-gold/5 border-gold/30' : 'bg-warm-white border-border'
+                                                }`}
                                         >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                ))
+                                            <div>
+                                                <span className="font-medium text-text-dark block">{email}</span>
+                                                <span className="text-xs text-text-muted mt-0.5 inline-block">
+                                                    Роль: {isEditor ? <span className="text-gold font-medium">Учасник (Редактор)</span> : "Глядач"}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handleToggleEditor(email)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isEditor
+                                                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                        }`}
+                                                    title={isEditor ? "Забрати права редактора" : "Дати права редактора"}
+                                                >
+                                                    {isEditor ? "Зробити Глядачем" : "Зробити Редактором"}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRemoveEmail(email)}
+                                                    className="p-2 text-text-light hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Видалити"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })
                             )}
                             {/* Адміністратор (завжди показуємо) */}
                             <div className="flex items-center justify-between p-4 rounded-xl bg-terracotta/5 border border-terracotta/20 mt-4">

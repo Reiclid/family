@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         email: firebaseUser.email,
                         displayName: firebaseUser.displayName,
                         photoURL: firebaseUser.photoURL,
+                        isEditor: true, // Адмін завжди має права редактора
                     });
                     setError(null);
                     setLoading(false);
@@ -46,7 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 try {
                     // Перевірка білого списку з Firestore
                     const settingsDoc = await getDoc(doc(db, "settings", "whitelist"));
-                    const allowedEmails: string[] = settingsDoc.exists() ? (settingsDoc.data().emails || []) : [];
+                    const data = settingsDoc.exists() ? settingsDoc.data() : {};
+                    const allowedEmails: string[] = data.emails || [];
+                    const editorEmails: string[] = data.editors || [];
 
                     // Перевіряємо чи email є в білому списку
                     if (allowedEmails.includes(firebaseUser.email)) {
@@ -55,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             email: firebaseUser.email,
                             displayName: firebaseUser.displayName,
                             photoURL: firebaseUser.photoURL,
+                            isEditor: editorEmails.includes(firebaseUser.email),
                         });
                         setError(null);
                     } else {

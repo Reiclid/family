@@ -67,6 +67,29 @@ export default function HomePage() {
     }
 
     fetchPhotos();
+
+    // Фонова авто-синхронізація (без блокування UI)
+    async function runAutoSync() {
+      if (!user) return;
+      try {
+        console.log("Запуск фонової синхронізаціі...");
+        const res = await fetch('/api/sync', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          // Якщо були знайдені нові фото або оновлення, перезавантажуємо сітку
+          if (data.addedCount > 0 || data.deletedCount > 0) {
+            console.log("Знайдено зміни на диску, оновлюємо галерею...");
+            fetchPhotos();
+          }
+        }
+      } catch (error) {
+        console.error("Помилка фонової синхронізації:", error);
+      }
+    }
+
+    // Запускаємо фоново, не чекаючи завершення
+    runAutoSync();
+
   }, [user]);
 
   // Унікальні роки для timeline

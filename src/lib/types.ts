@@ -36,4 +36,5 @@ export interface AppUser {
     email: string;
     displayName: string | null;
     photoURL: string | null;
+    isEditor: boolean;
 }

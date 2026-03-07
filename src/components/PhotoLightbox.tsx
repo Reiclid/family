@@ -87,27 +87,43 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
         }
     };
 
-    // Блискавичне ділення зображенням
+    // Поділитись (або скопіювати) фотографією
     const handleShare = async () => {
         try {
-            // Використовуємо проксі, щоб обійти CORS обмеження Google Drive
+            // Проксі-запит для обходу правил CORS
             const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(activeVersion.url)}`;
             const response = await fetch(proxyUrl);
             const blob = await response.blob();
+            const file = new File([blob], `${currentPhoto.name}.jpg`, { type: blob.type });
 
-            // Записуємо Blob у буфер обміну як PNG/JPEG
-            await navigator.clipboard.write([
-                new ClipboardItem({ [blob.type]: blob })
-            ]);
-            alert("Фото успішно скопійовано в буфер обміну! Можете вставити його в повідомлення (Ctrl+V або Paste).");
-        } catch (error) {
-            console.error("Помилка при копіюванні фото", error);
+            // 1. Спробуємо нативний Share API (працює на iOS, Android)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: currentPhoto.name,
+                    text: currentPhoto.description || "Спогад з Сімейного Архіву",
+                });
+                return; // Успіх мобільного share
+            }
+
+            // 2. Якщо Share API не підтримує файли (чи це ПК) - копіюємо в буфер як Картинку!
             try {
-                // Запасний варіант: копіюємо посилання, якщо картинка блокується CORS або браузер не підтримує
+                const clipboardItem = new ClipboardItem({ [blob.type]: blob });
+                await navigator.clipboard.write([clipboardItem]);
+                alert("Фото успішно скопійовано в буфер обміну! Можете вставити його в повідомлення (Ctrl+V або Paste).");
+            } catch (clipboardErr) {
+                console.error("Помилка копіювання зображення в буфер", clipboardErr);
+                alert("Ваш браузер не підтримує пряме копіювання файлів. Можливо, відкрийте фото і натисніть 'Скопіювати зображення'.");
+            }
+
+        } catch (error) {
+            console.error("Помилка при спробі поділитись фото", error);
+            try {
+                // Якщо зовсім все погано — копіюємо хоча б посилання на диск
                 await navigator.clipboard.writeText(activeVersion.url);
-                alert("Пряме посилання скопійовано у буфер обміну (Safari/Деякі браузери можуть блокувати копіювання файлів)!");
+                alert("Не вдалось завантажити фото для відправки. Скопійовано пряме посилання.");
             } catch (err) {
-                alert("Не вдалося скопіювати. Спробуйте вручну.");
+                alert("Помилка.");
             }
         }
     };
@@ -171,7 +187,7 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                             <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
 
-                        {user?.email === ADMIN_CONFIG.email && (
+                        {(user?.email === ADMIN_CONFIG.email || user?.isEditor) && (
                             <button
                                 onClick={handleEditClick}
                                 className="p-2.5 rounded-full bg-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all backdrop-blur-md"
