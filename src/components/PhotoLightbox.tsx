@@ -43,6 +43,27 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
         setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
     }, [photos.length]);
 
+    // Фонове передзавантаження сусідніх фотографій (на 3 кроки вперед/назад)
+    useEffect(() => {
+        if (!open || photos.length === 0) return;
+        const preloadCount = 3;
+        for (let i = 1; i <= preloadCount; i++) {
+            const nextIdx = (currentIndex + i) % photos.length;
+            let prevIdx = currentIndex - i;
+            if (prevIdx < 0) prevIdx += photos.length;
+
+            [nextIdx, prevIdx].forEach(idx => {
+                if (idx < 0 || idx >= photos.length) return;
+                const p = photos[idx];
+                const urlsToPreload = p.versions?.length ? p.versions.map(v => v.url) : [p.url];
+                urlsToPreload.forEach(url => {
+                    const img = new window.Image();
+                    img.src = url;
+                });
+            });
+        }
+    }, [currentIndex, photos, open]);
+
     // Обробка клавішами (ESC, стрілки вліво/вправо)
     useEffect(() => {
         if (!open) return;
@@ -293,20 +314,6 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                                 onDragEnd={handleDragEnd}
                                 className="absolute inset-0 flex items-center justify-center p-4 md:p-12 overflow-hidden"
                             >
-                                {/* Невидима загрузка сусідніх фото */}
-                                <div className="hidden">
-                                    {photos.length > 1 && (
-                                        <>
-                                            <Image
-                                                src={photos[currentIndex === 0 ? photos.length - 1 : currentIndex - 1]?.versions?.[0]?.url || photos[currentIndex === 0 ? photos.length - 1 : currentIndex - 1]?.url}
-                                                alt="preload-prev" fill priority={false} unoptimized={false} />
-                                            <Image
-                                                src={photos[currentIndex === photos.length - 1 ? 0 : currentIndex + 1]?.versions?.[0]?.url || photos[currentIndex === photos.length - 1 ? 0 : currentIndex + 1]?.url}
-                                                alt="preload-next" fill priority={false} unoptimized={false} />
-                                        </>
-                                    )}
-                                </div>
-
                                 <Image
                                     src={activeVersion.url}
                                     alt={currentPhoto.name}
@@ -350,7 +357,7 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                     {/* Панель перемикання версій */}
                     {currentVersions.length > 1 && (
                         <div
-                            className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-2 p-1.5 md:p-2 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl"
+                            className="absolute top-20 md:top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 p-1.5 md:p-2 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {currentVersions.map((version) => {

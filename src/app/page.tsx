@@ -12,6 +12,7 @@ import SearchBar from "@/components/SearchBar";
 import YearTimeline from "@/components/YearTimeline";
 import PhotoGrid from "@/components/PhotoGrid";
 import PhotoLightbox from "@/components/PhotoLightbox";
+import SortDropdown from "@/components/SortDropdown";
 import { Loader2, ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -25,6 +26,7 @@ export default function HomePage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [useMockData, setUseMockData] = useState(false);
+  const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
 
   // Редірект якщо не авторизований
   useEffect(() => {
@@ -100,9 +102,9 @@ export default function HomePage() {
     return Array.from(yearSet).sort((a, b) => b - a);
   }, [photos]);
 
-  // Фільтрація фото
+  // Фільтрація та Сортування фото
   const filteredPhotos = useMemo(() => {
-    let result = photos;
+    let result = [...photos]; // Створюємо копію для сортування
 
     // Фільтр по року
     if (activeYear !== null) {
@@ -123,8 +125,16 @@ export default function HomePage() {
       });
     }
 
+    // Сортування
+    if (sortBy === 'name') {
+      result.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      // Спочатку нові (за датою спадання)
+      result.sort((a, b) => b.dateTaken.toMillis() - a.dateTaken.toMillis());
+    }
+
     return result;
-  }, [photos, activeYear, searchQuery]);
+  }, [photos, activeYear, searchQuery, sortBy]);
 
   const handlePhotoClick = useCallback((index: number) => {
     setLightboxIndex(index);
@@ -179,9 +189,14 @@ export default function HomePage() {
           </p>
         </motion.div>
 
-        {/* Пошук */}
-        <div className="mb-6">
-          <SearchBar onSearch={handleSearch} />
+        {/* Пошук та Сортування */}
+        <div className="mb-6 relative z-[100] flex flex-col sm:flex-row gap-4 items-center">
+          <div className="w-full sm:flex-1 relative z-10">
+            <SearchBar onSearch={handleSearch} />
+          </div>
+          <div className="w-full sm:w-auto shrink-0 z-10 flex justify-end">
+            <SortDropdown sortBy={sortBy} setSortBy={setSortBy} />
+          </div>
         </div>
 
         {/* Timeline років */}
