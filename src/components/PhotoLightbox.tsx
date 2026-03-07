@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Photo, PhotoVersionType } from "@/lib/types";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Share2, Edit2, Save } from "lucide-react";
@@ -20,6 +20,7 @@ interface PhotoLightboxProps {
 export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLightboxProps) {
     const { user } = useAuth();
     const [currentIndex, setCurrentIndex] = useState(index);
+    const [direction, setDirection] = useState(0); // 1 for next, -1 for prev
     const [activeVersions, setActiveVersions] = useState<Record<string, PhotoVersionType>>({});
 
     // Стан редагування
@@ -31,6 +32,16 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
     useEffect(() => {
         if (open) setCurrentIndex(index);
     }, [open, index]);
+
+    const handlePrev = useCallback(() => {
+        setDirection(-1);
+        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+    }, [photos.length]);
+
+    const handleNext = useCallback(() => {
+        setDirection(1);
+        setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+    }, [photos.length]);
 
     // Обробка клавішами (ESC, стрілки вліво/вправо)
     useEffect(() => {
@@ -50,7 +61,7 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
             window.removeEventListener("keydown", handleKeyDown);
             document.body.style.overflow = "auto";
         };
-    }, [open, currentIndex, photos.length]);
+    }, [open, currentIndex, photos.length, handlePrev, handleNext]);
 
     if (!open || photos.length === 0) return null;
 
@@ -69,14 +80,6 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
         "colorized": "В кольорі"
     };
 
-    const handlePrev = () => {
-        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
-    };
-
-    const handleNext = () => {
-        setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
-    };
-
     // Свайпи на телефонах
     const handleDragEnd = (e: any, info: PanInfo) => {
         const threshold = 50; // мінімальна відстань для свайпу
@@ -84,6 +87,44 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
             handlePrev();
         } else if (info.offset.x < -threshold) {
             handleNext();
+        }
+    };
+
+    // Навігація кліком по краях на мобільних пристроях
+    const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const width = rect.width;
+
+        // Якщо клік в лівій 20% частині - Назад
+        if (x < width * 0.2) {
+            handlePrev();
+        }
+        // Якщо клік в правій 20% частині - Вперед
+        else if (x > width * 0.8) {
+            handleNext();
+        }
+    };
+
+    // Варіанти анімації зсуву
+    const slideVariants = {
+        enter: (dir: number) => {
+            return {
+                x: dir > 0 ? window.innerWidth : -window.innerWidth,
+                opacity: 0
+            };
+        },
+        center: {
+            zIndex: 1,
+            x: 0,
+            opacity: 1
+        },
+        exit: (dir: number) => {
+            return {
+                zIndex: 0,
+                x: dir < 0 ? window.innerWidth : -window.innerWidth,
+                opacity: 0
+            };
         }
     };
 
@@ -116,14 +157,19 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                 alert("Ваш браузер не підтримує пряме копіювання файлів. Можливо, відкрийте фото і натисніть 'Скопіювати зображення'.");
             }
 
-        } catch (error) {
+        } catch (error: any) {
+            // Ігноруємо помилку, якщо користувач просто закрив меню "Поділитися"
+            if (error?.name === 'AbortError') {
+                return;
+            }
+
             console.error("Помилка при спробі поділитись фото", error);
             try {
                 // Якщо зовсім все погано — копіюємо хоча б посилання на диск
                 await navigator.clipboard.writeText(activeVersion.url);
                 alert("Не вдалось завантажити фото для відправки. Скопійовано пряме посилання.");
             } catch (err) {
-                alert("Помилка.");
+                alert("Помилка. Не вдалося ані переслати файл, ані скопіювати посилання.");
             }
         }
     };
@@ -221,25 +267,46 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                         </button>
                     )}
 
-                    {/* Зображення зі свайпом */}
-                    <motion.div
-                        className="relative w-full h-full max-w-[100vw] md:max-w-6xl max-h-[85vh] flex flex-col items-center justify-center p-0 md:p-12"
-                        drag="x"
-                        dragConstraints={{ left: 0, right: 0 }}
-                        dragElastic={0.8}
-                        onDragEnd={handleDragEnd}
-                        onClick={(e) => e.stopPropagation()}
+                    {/* Зображення зі свайпом та навігацією по краях */}
+                    <div
+                        className="relative w-full h-full max-w-[100vw] md:max-w-6xl max-h-[85vh] flex flex-col items-center justify-center p-0 md:p-12 cursor-pointer md:cursor-default"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleImageClick(e);
+                        }}
                     >
-                        <AnimatePresence mode="wait">
+                        <AnimatePresence initial={false} custom={direction} mode="popLayout">
                             <motion.div
                                 key={`${currentPhoto.id}-${activeVersion.type}`}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 1.02 }}
-                                transition={{ duration: 0.25, ease: "easeOut" }}
-                                className="relative w-full h-full flex items-center justify-center"
+                                custom={direction}
+                                variants={slideVariants}
+                                initial="enter"
+                                animate="center"
+                                exit="exit"
+                                transition={{
+                                    x: { type: "spring", stiffness: 300, damping: 30 },
+                                    opacity: { duration: 0.2 }
+                                }}
+                                drag="x"
+                                dragConstraints={{ left: 0, right: 0 }}
+                                dragElastic={1}
+                                onDragEnd={handleDragEnd}
+                                className="absolute inset-0 flex items-center justify-center p-4 md:p-12 overflow-hidden"
                             >
-                                {/* Використовуємо unoptimized щоб обійти повільну обробку Next.js для зовнішніх посилань Drive */}
+                                {/* Невидима загрузка сусідніх фото */}
+                                <div className="hidden">
+                                    {photos.length > 1 && (
+                                        <>
+                                            <Image
+                                                src={photos[currentIndex === 0 ? photos.length - 1 : currentIndex - 1]?.versions?.[0]?.url || photos[currentIndex === 0 ? photos.length - 1 : currentIndex - 1]?.url}
+                                                alt="preload-prev" fill priority={false} unoptimized={false} />
+                                            <Image
+                                                src={photos[currentIndex === photos.length - 1 ? 0 : currentIndex + 1]?.versions?.[0]?.url || photos[currentIndex === photos.length - 1 ? 0 : currentIndex + 1]?.url}
+                                                alt="preload-next" fill priority={false} unoptimized={false} />
+                                        </>
+                                    )}
+                                </div>
+
                                 <Image
                                     src={activeVersion.url}
                                     alt={currentPhoto.name}
@@ -257,7 +324,7 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="absolute bottom-20 md:-bottom-8 left-0 right-0 text-center px-4 pointer-events-none"
+                            className="absolute bottom-20 md:-bottom-8 left-0 right-0 text-center px-4 pointer-events-none z-10"
                         >
                             <h2 className="text-white text-lg md:text-xl font-serif mb-1 tracking-wide drop-shadow-lg">{currentPhoto.name}</h2>
                             <p className="text-white/80 text-xs md:text-sm flex flex-wrap items-center justify-center gap-1.5 md:gap-2 drop-shadow-lg">
@@ -268,7 +335,7 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                                 {currentPhoto.tags.length > 0 && <span>{currentPhoto.tags.join(", ")}</span>}
                             </p>
                         </motion.div>
-                    </motion.div>
+                    </div>
 
                     {/* Навігація вправо (тільки desktop) */}
                     {photos.length > 1 && (

@@ -3,10 +3,17 @@ import { Readable } from "stream";
 
 // Ініціалізація Google Drive API з Service Account
 function getDriveService() {
+    let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "";
+    // Прибираємо можливі лапки на початку та в кінці, якщо парсер Next.js їх випадково зберіг з .env
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        privateKey = privateKey.slice(1, -1);
+    }
+    privateKey = privateKey.replace(/\\n/g, "\n");
+
     const auth = new google.auth.GoogleAuth({
         credentials: {
             client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-            private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+            private_key: privateKey,
         },
         scopes: ["https://www.googleapis.com/auth/drive"],
     });
