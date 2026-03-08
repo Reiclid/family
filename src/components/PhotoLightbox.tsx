@@ -112,6 +112,10 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
     if (!open || photos.length === 0) return null;
 
     const currentPhoto = photos[currentIndex];
+
+    // Захист від випадків, коли масив photos оновлюється під час відкритої галереї
+    if (!currentPhoto) return null;
+
     const currentVersions = currentPhoto?.versions || [];
 
     // Знаходимо поточну активну версію
