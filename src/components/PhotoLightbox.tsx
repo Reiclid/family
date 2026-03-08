@@ -191,9 +191,15 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
     const handleShare = async () => {
         try {
             // Проксі-запит для обходу правил CORS
-            const proxyUrl = `/ api / proxy - image ? url = ${encodeURIComponent(activeVersion.url)} `;
+            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(activeVersion.url)}`;
             const response = await fetch(proxyUrl);
             const blob = await response.blob();
+
+            // Перевіряємо, чи ми дійсно отримали зображення, а не HTML сторінку з помилкою
+            if (!blob.type.startsWith('image/')) {
+                throw new Error('Received invalid content type from proxy');
+            }
+
             const file = new File([blob], `${currentPhoto.name}.jpg`, { type: blob.type });
 
             // 1. Спробуємо нативний Share API (працює на iOS, Android)
