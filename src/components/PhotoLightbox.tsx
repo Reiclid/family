@@ -470,66 +470,86 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                     <AnimatePresence>
                         {isEditing && (
                             <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.9 }}
-                                onClick={(e) => e.stopPropagation()}
-                                className="absolute bg-white/95 backdrop-blur-3xl rounded-3xl p-6 sm:p-8 w-11/12 max-w-md shadow-2xl z-[200] border border-white/50"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                                onClick={(e) => {
+                                    e.stopPropagation(); // Блокуємо кліки поза формою
+                                }}
                             >
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-bold text-text-dark font-serif">Редагування</h3>
-                                    <button onClick={() => setIsEditing(false)} className="text-text-muted hover:text-text-dark">
-                                        <X className="w-6 h-6" />
-                                    </button>
-                                </div>
-                                <form onSubmit={handleSaveEdit} className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1">Назва</label>
-                                        <input
-                                            type="text"
-                                            value={editData.name}
-                                            onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                                            className="w-full px-4 py-2 rounded-xl border border-border bg-white text-text-dark focus:ring-2 focus:ring-terracotta/50 outline-none"
-                                            required
-                                        />
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="bg-white/95 backdrop-blur-3xl rounded-3xl p-6 sm:p-8 w-11/12 max-w-md shadow-2xl border border-white/50"
+                                >
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xl font-bold text-text-dark font-serif">Редагування</h3>
+                                        <button onClick={() => setIsEditing(false)} className="text-text-muted hover:text-text-dark">
+                                            <X className="w-6 h-6" />
+                                        </button>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1">Опис</label>
-                                        <textarea
-                                            value={editData.description}
-                                            onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                                            className="w-full px-4 py-2 rounded-xl border border-border bg-white text-text-dark focus:ring-2 focus:ring-terracotta/50 outline-none"
-                                            rows={2}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1">Теги (через кому)</label>
-                                        <input
-                                            type="text"
-                                            value={editData.tags}
-                                            onChange={(e) => setEditData({ ...editData, tags: e.target.value })}
-                                            className="w-full px-4 py-2 rounded-xl border border-border bg-white text-text-dark focus:ring-2 focus:ring-terracotta/50 outline-none"
-                                            placeholder="день народження, 1995"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1">Дата</label>
-                                        <input
-                                            type="date"
-                                            value={editData.dateTaken}
-                                            onChange={(e) => setEditData({ ...editData, dateTaken: e.target.value })}
-                                            className="w-full px-4 py-2 rounded-xl border border-border bg-white text-text-dark focus:ring-2 focus:ring-terracotta/50 outline-none"
-                                            required
-                                        />
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        disabled={isSaving}
-                                        className="w-full flex justify-center items-center gap-2 py-3 mt-4 rounded-xl bg-gradient-to-r from-terracotta to-gold text-white font-medium hover:shadow-lg disabled:opacity-50 transition-all"
-                                    >
-                                        {isSaving ? "Збереження..." : <><Save className="w-5 h-5" /> Зберегти</>}
-                                    </button>
-                                </form>
+                                    <form onSubmit={handleSaveEdit} className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-text-muted mb-1">Назва</label>
+                                            <input
+                                                type="text"
+                                                value={editData.name}
+                                                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                                                className="w-full px-4 py-2 rounded-xl border border-border bg-white text-text-dark focus:ring-2 focus:ring-terracotta/50 outline-none"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-text-muted mb-1">Опис</label>
+                                            <textarea
+                                                value={editData.description}
+                                                onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                                                className="w-full px-4 py-2 rounded-xl border border-border bg-white text-text-dark focus:ring-2 focus:ring-terracotta/50 outline-none"
+                                                rows={2}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-text-muted mb-1">Теги (через кому)</label>
+                                            <input
+                                                type="text"
+                                                value={editData.tags}
+                                                onChange={(e) => setEditData({ ...editData, tags: e.target.value })}
+                                                className="w-full px-4 py-2 rounded-xl border border-border bg-white text-text-dark focus:ring-2 focus:ring-terracotta/50 outline-none"
+                                                placeholder="день народження, 1995"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-text-muted mb-1">Дата</label>
+                                            <input
+                                                type="date"
+                                                value={editData.dateTaken}
+                                                onChange={(e) => setEditData({ ...editData, dateTaken: e.target.value })}
+                                                className="w-full px-4 py-2 rounded-xl border border-border bg-white text-text-dark focus:ring-2 focus:ring-terracotta/50 outline-none"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="flex justify-end gap-3 pt-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsEditing(false)}
+                                                className="px-5 py-2.5 rounded-xl font-medium text-text-muted hover:text-text-dark hover:bg-cream transition-colors"
+                                            >
+                                                Скасувати
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={isSaving}
+                                                className="px-5 py-2.5 rounded-xl font-medium bg-terracotta text-white hover:bg-terracotta-dark disabled:opacity-50 transition-colors flex items-center gap-2"
+                                            >
+                                                <Save className="w-4 h-4" />
+                                                {isSaving ? "Збереження..." : "Зберегти"}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </motion.div>
                             </motion.div>
                         )}
                     </AnimatePresence>
