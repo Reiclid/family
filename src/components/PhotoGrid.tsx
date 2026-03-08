@@ -28,7 +28,7 @@ function GridItem({ photo, index, onPhotoClick }: { photo: Photo; index: number;
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: (index % 4) * 0.05 }} // робимо невелику затримку для кожного стовпчика
-            className="group cursor-pointer mb-4"
+            className="group cursor-pointer"
             onClick={() => onPhotoClick(index)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => { setIsHovered(false); setCurrentVersionIdx(0); }}
