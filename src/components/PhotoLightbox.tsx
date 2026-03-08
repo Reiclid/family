@@ -261,7 +261,6 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                 tags: editData.tags.split(",").map(t => t.trim()).filter(Boolean),
                 dateTaken: Timestamp.fromDate(selectedDate)
             });
-            alert("Фото успішно оновлено. Оновіть сторінку, щоб побачити зміни.");
             setIsEditing(false);
         } catch (error) {
             console.error("Помилка збереження", error);
