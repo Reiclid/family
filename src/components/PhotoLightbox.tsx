@@ -279,7 +279,7 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-3xl"
+                    className="fixed inset-0 z-[102] flex items-center justify-center bg-black/95 backdrop-blur-3xl"
                     onClick={onClose}
                 >
                     {/* Верхня панель інструментів (Right) */}

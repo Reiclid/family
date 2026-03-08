@@ -17,7 +17,7 @@ export default function Header() {
     if (!user) return null;
 
     return (
-        <header className="sticky top-0 z-[100] backdrop-blur-md bg-warm-white/80 border-b border-border">
+        <header className="sticky top-0 z-[101] backdrop-blur-md bg-warm-white/80 border-b border-border">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                     {/* Логотип */}
