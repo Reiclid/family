@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Photo, PhotoVersionType } from "@/lib/types";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { motion, AnimatePresence, PanInfo, useMotionValue } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Share2, Edit2, Save } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
@@ -22,11 +22,34 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
     const [currentIndex, setCurrentIndex] = useState(index);
     const [direction, setDirection] = useState(0); // 1 for next, -1 for prev
     const [activeVersions, setActiveVersions] = useState<Record<string, PhotoVersionType>>({});
+    const [animationType, setAnimationType] = useState<"slide" | "fade">("slide");
+    const [draggingDir, setDraggingDir] = useState<number | null>(null);
 
     // Стан редагування
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [editData, setEditData] = useState({ name: "", description: "", tags: "", dateTaken: "" });
+
+    // Свайпи (нова логіка Track-Based Slider)
+    const dragX = useMotionValue(0);
+
+    const thumbstripRef = useRef<HTMLDivElement>(null);
+
+    // Авто-скрол мініатюр, щоб активне фото було по центру
+    useEffect(() => {
+        if (!thumbstripRef.current) return;
+        const activeThumb = document.getElementById(`thumb-${currentIndex}`);
+        if (activeThumb) {
+            const container = thumbstripRef.current;
+            const scrollLeft = activeThumb.offsetLeft - (container.offsetWidth / 2) + (activeThumb.offsetWidth / 2);
+            container.scrollTo({ left: scrollLeft, behavior: "smooth" });
+        }
+    }, [currentIndex]);
+
+    // Скидаємо позицію після зміни індексу
+    useEffect(() => {
+        dragX.set(0);
+    }, [currentIndex, dragX]);
 
     // Синхронізація індексу
     useEffect(() => {
@@ -34,11 +57,13 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
     }, [open, index]);
 
     const handlePrev = useCallback(() => {
+        setAnimationType("slide");
         setDirection(-1);
         setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
     }, [photos.length]);
 
     const handleNext = useCallback(() => {
+        setAnimationType("slide");
         setDirection(1);
         setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
     }, [photos.length]);
@@ -95,20 +120,55 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
         ? currentVersions.find(v => v.type === activeType) || currentVersions[0] || { url: currentPhoto.url, type: 'original' }
         : currentVersions[0] || { url: currentPhoto.url, type: 'original' };
 
-    const typeLabels: Record<string, string> = {
-        "original": "Оригінал",
-        "enhanced": "Покращено",
-        "colorized": "В кольорі"
+    const handleDrag = (e: any, info: PanInfo) => {
+        if (info.offset.x > 10) setDraggingDir(-1);
+        else if (info.offset.x < -10) setDraggingDir(1);
     };
 
-    // Свайпи на телефонах
     const handleDragEnd = (e: any, info: PanInfo) => {
-        const threshold = 50; // мінімальна відстань для свайпу
+        setDraggingDir(null);
+        const threshold = 50;
         if (info.offset.x > threshold) {
             handlePrev();
         } else if (info.offset.x < -threshold) {
             handleNext();
         }
+    };
+
+    // Варіанти анімації зсуву
+    const slideVariants = {
+        enter: ({ dir, type }: { dir: number, type: "slide" | "fade" }) => {
+            if (type === "fade") {
+                return { opacity: 0, x: 0, y: 0, zIndex: 0 };
+            }
+            return {
+                x: dir > 0 ? window.innerWidth : -window.innerWidth,
+                opacity: 0,
+                zIndex: 1
+            };
+        },
+        center: {
+            zIndex: 1,
+            x: 0,
+            y: 0,
+            opacity: 1
+        },
+        exit: ({ dir, type }: { dir: number, type: "slide" | "fade" }) => {
+            if (type === "fade") {
+                return { opacity: 0, x: 0, y: 0, zIndex: 0 };
+            }
+            return {
+                zIndex: 0,
+                x: dir < 0 ? window.innerWidth : -window.innerWidth,
+                opacity: 0
+            };
+        }
+    };
+
+    const typeLabels: Record<string, string> = {
+        "original": "Оригінал",
+        "enhanced": "Покращено",
+        "colorized": "В кольорі"
     };
 
     // Навігація кліком по краях на мобільних пристроях
@@ -127,33 +187,11 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
         }
     };
 
-    // Варіанти анімації зсуву
-    const slideVariants = {
-        enter: (dir: number) => {
-            return {
-                x: dir > 0 ? window.innerWidth : -window.innerWidth,
-                opacity: 0
-            };
-        },
-        center: {
-            zIndex: 1,
-            x: 0,
-            opacity: 1
-        },
-        exit: (dir: number) => {
-            return {
-                zIndex: 0,
-                x: dir < 0 ? window.innerWidth : -window.innerWidth,
-                opacity: 0
-            };
-        }
-    };
-
     // Поділитись (або скопіювати) фотографією
     const handleShare = async () => {
         try {
             // Проксі-запит для обходу правил CORS
-            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(activeVersion.url)}`;
+            const proxyUrl = `/ api / proxy - image ? url = ${encodeURIComponent(activeVersion.url)} `;
             const response = await fetch(proxyUrl);
             const blob = await response.blob();
             const file = new File([blob], `${currentPhoto.name}.jpg`, { type: blob.type });
@@ -290,29 +328,32 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
 
                     {/* Зображення зі свайпом та навігацією по краях */}
                     <div
-                        className="relative w-full h-full max-w-[100vw] md:max-w-6xl max-h-[85vh] flex flex-col items-center justify-center p-0 md:p-12 cursor-pointer md:cursor-default"
+                        className="relative w-screen h-screen max-w-[100vw] max-h-[100dvh] flex flex-col items-center justify-center cursor-pointer md:cursor-default overflow-hidden"
                         onClick={(e) => {
                             e.stopPropagation();
                             handleImageClick(e);
                         }}
                     >
-                        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                        {/* Головне фото */}
+                        <AnimatePresence initial={false} custom={{ dir: direction, type: animationType }} mode="popLayout">
                             <motion.div
                                 key={`${currentPhoto.id}-${activeVersion.type}`}
-                                custom={direction}
+                                custom={{ dir: direction, type: animationType }}
                                 variants={slideVariants}
                                 initial="enter"
                                 animate="center"
                                 exit="exit"
                                 transition={{
                                     x: { type: "spring", stiffness: 300, damping: 30 },
-                                    opacity: { duration: 0.2 }
+                                    y: { type: "spring", stiffness: 300, damping: 30 },
+                                    opacity: { duration: animationType === "fade" ? 0.4 : 0.2 }
                                 }}
                                 drag="x"
                                 dragConstraints={{ left: 0, right: 0 }}
-                                dragElastic={1}
+                                dragElastic={0.8}
+                                onDrag={handleDrag}
                                 onDragEnd={handleDragEnd}
-                                className="absolute inset-0 flex items-center justify-center p-4 md:p-12 overflow-hidden"
+                                className="absolute inset-x-0 inset-y-16 md:inset-x-12 md:inset-y-12 flex items-center justify-center overflow-hidden z-10"
                             >
                                 <Image
                                     src={activeVersion.url}
@@ -320,8 +361,8 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                                     fill
                                     className="object-contain drop-shadow-2xl pointer-events-none select-none"
                                     sizes="100vw"
-                                    priority
-                                    unoptimized={false}
+                                    priority={true}
+                                    unoptimized={true}
                                 />
                             </motion.div>
                         </AnimatePresence>
@@ -331,7 +372,7 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="absolute bottom-20 md:-bottom-8 left-0 right-0 text-center px-4 pointer-events-none z-10"
+                            className="absolute bottom-28 md:bottom-32 left-0 right-0 text-center px-4 pointer-events-none z-10"
                         >
                             <h2 className="text-white text-lg md:text-xl font-serif mb-1 tracking-wide drop-shadow-lg">{currentPhoto.name}</h2>
                             <p className="text-white/80 text-xs md:text-sm flex flex-wrap items-center justify-center gap-1.5 md:gap-2 drop-shadow-lg">
@@ -342,6 +383,48 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                                 {currentPhoto.tags.length > 0 && <span>{currentPhoto.tags.join(", ")}</span>}
                             </p>
                         </motion.div>
+
+                        {/* Стрічка мініатюр (Google Photos style) */}
+                        <div
+                            ref={thumbstripRef}
+                            className="absolute bottom-4 left-0 right-0 h-20 md:h-24 px-4 overflow-x-auto overflow-y-hidden whitespace-nowrap z-50 flex items-center gap-2 custom-scrollbar scroll-smooth"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="mx-auto flex gap-2 w-max">
+                                {photos.map((photo, idx) => {
+                                    const isCurrent = idx === currentIndex;
+                                    const thumbnailUrl = photo.thumbnailUrl || photo.versions?.[0]?.url || photo.url;
+
+                                    // Рендеримо тільки сусідні 20 фото для оптимізації
+                                    if (Math.abs(idx - currentIndex) > 20) return null;
+
+                                    return (
+                                        <div
+                                            key={photo.id}
+                                            id={`thumb-${idx}`}
+                                            onClick={() => {
+                                                if (idx === currentIndex) return;
+                                                setAnimationType("slide");
+                                                setDirection(idx > currentIndex ? 1 : -1);
+                                                setCurrentIndex(idx);
+                                            }}
+                                            className={`relative h-16 md:h-20 aspect-square md:aspect-video rounded-md overflow-hidden cursor-pointer transition-all duration-300 flex-shrink-0 ${isCurrent ? "ring-2 ring-white scale-110 brightness-110 shadow-lg" : "opacity-50 hover:opacity-100"
+                                                }`}
+                                        >
+                                            <Image
+                                                src={thumbnailUrl}
+                                                alt={`Thumbnail ${idx}`}
+                                                fill
+                                                className="object-cover"
+                                                sizes="100px"
+                                                priority={false} // Важливо для усунення попереджень preload
+                                                unoptimized={true}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Навігація вправо (тільки desktop) */}
@@ -366,7 +449,11 @@ export default function PhotoLightbox({ photos, open, index, onClose }: PhotoLig
                                 return (
                                     <button
                                         key={version.type}
-                                        onClick={() => setActiveVersions(prev => ({ ...prev, [currentPhoto.id]: version.type as PhotoVersionType }))}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setAnimationType("fade");
+                                            setActiveVersions(prev => ({ ...prev, [currentPhoto.id]: version.type as PhotoVersionType }));
+                                        }}
                                         className={`px-4 py-1.5 md:px-6 md:py-2 rounded-full text-xs md:text-sm font-semibold transition-all duration-300 ${isActive
                                             ? "bg-white text-black shadow-lg scale-105"
                                             : "text-white/80 hover:text-white hover:bg-white/20"

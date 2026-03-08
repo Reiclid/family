@@ -9,9 +9,11 @@
   /* Кольорова палітра — Чорно-біла з золотом */
   --color-warm-white: #FFFFFF;
   --color-cream: #FAFAFA;
-  --color-terracotta: #D4AF37; /* Золотий акцент */
+  --color-terracotta: #D4AF37;
+  /* Золотий акцент */
   --color-terracotta-light: #F3E5AB;
-  --color-olive: #1A1A1A; /* Темний/Чорний */
+  --color-olive: #1A1A1A;
+  /* Темний/Чорний */
   --color-olive-light: #333333;
   --color-deep-blue: #000000;
   --color-deep-blue-light: #111111;
@@ -58,6 +60,24 @@ body {
   display: none;
 }
 
+/* Custom horizontal scrollbar for lightbox thumbnails */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
 /* ===== Selections ===== */
 ::selection {
   background-color: var(--color-terracotta);
@@ -70,6 +90,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

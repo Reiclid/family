@@ -3,7 +3,7 @@
 import { Photo, PhotoVersion } from "@/lib/types";
 import { motion } from "framer-motion";
 import { Calendar, Tag, Layers } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import Image from "next/image";
 
 interface PhotoGridProps {
@@ -19,25 +19,16 @@ function GridItem({ photo, index, onPhotoClick }: { photo: Photo; index: number;
     const [currentVersionIdx, setCurrentVersionIdx] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
 
-    // Циклічне перемикання версій при наведенні
-    useEffect(() => {
-        if (!isHovered || versions.length <= 1) return;
-
-        const interval = setInterval(() => {
-            setCurrentVersionIdx((prev) => (prev + 1) % versions.length);
-        }, 1200); // зміна кожні 1.2с
-
-        return () => clearInterval(interval);
-    }, [isHovered, versions.length, setCurrentVersionIdx]);
-
     const activeImage = versions[currentVersionIdx].thumbnailUrl || versions[currentVersionIdx].url;
+    // Тільки перші 8 зображень завантажуємо одразу "eager", щоб інші не гальмували
+    const isEager = index < 8;
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: index * 0.05 }}
-            className="break-inside-avoid group cursor-pointer"
+            transition={{ duration: 0.4, delay: (index % 4) * 0.05 }} // робимо невелику затримку для кожного стовпчика
+            className="group cursor-pointer mb-4"
             onClick={() => onPhotoClick(index)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => { setIsHovered(false); setCurrentVersionIdx(0); }}
@@ -47,10 +38,10 @@ function GridItem({ photo, index, onPhotoClick }: { photo: Photo; index: number;
                 <Image
                     src={activeImage}
                     alt={photo.name}
-                    loading="eager"
+                    loading={isEager ? "eager" : "lazy"}
                     width={500}
                     height={500}
-                    unoptimized={false}
+                    unoptimized={true}
                     className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
                 />
 
@@ -101,7 +92,29 @@ function GridItem({ photo, index, onPhotoClick }: { photo: Photo; index: number;
     );
 }
 
+// Хук для відслідковування розміру вікна
+function useWindowSize() {
+    const [size, setSize] = useState([0, 0]);
+    useLayoutEffect(() => {
+        function updateSize() {
+            setSize([window.innerWidth, window.innerHeight]);
+        }
+        window.addEventListener('resize', updateSize);
+        updateSize();
+        return () => window.removeEventListener('resize', updateSize);
+    }, []);
+    return size;
+}
+
 export default function PhotoGrid({ photos, onPhotoClick }: PhotoGridProps) {
+    const [width] = useWindowSize();
+
+    // Визначаємо кількість колонок залежно від ширини (як у Tailwind breakpoints)
+    let columnsCount = 1;
+    if (width >= 1280) columnsCount = 4; // xl
+    else if (width >= 1024) columnsCount = 3; // lg
+    else if (width >= 640) columnsCount = 2; // sm
+
     if (photos.length === 0) {
         return (
             <motion.div
@@ -120,10 +133,27 @@ export default function PhotoGrid({ photos, onPhotoClick }: PhotoGridProps) {
         );
     }
 
+    // JS Masonry алгоритм (Зліва-направо)
+    const columns: Array<Array<{ photo: Photo; originalIndex: number }>> = Array.from({ length: columnsCount }, () => []);
+
+    photos.forEach((photo, index) => {
+        const columnIndex = index % columnsCount;
+        columns[columnIndex].push({ photo, originalIndex: index });
+    });
+
     return (
-        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
-            {photos.map((photo, index) => (
-                <GridItem key={photo.id} photo={photo} index={index} onPhotoClick={onPhotoClick} />
+        <div className="flex w-full gap-4 items-start">
+            {columns.map((column, colIdx) => (
+                <div key={colIdx} className="flex flex-col flex-1 gap-4">
+                    {column.map((item) => (
+                        <GridItem
+                            key={item.photo.id}
+                            photo={item.photo}
+                            index={item.originalIndex}
+                            onPhotoClick={onPhotoClick}
+                        />
+                    ))}
+                </div>
             ))}
         </div>
     );
